@@ -39,22 +39,23 @@ Server berjalan di `http://localhost:3000` (dapat diubah lewat `PORT` di `.env`)
 | Method | Path | Keterangan |
 |---|---|---|
 | GET | `/health` | Health check |
-| GET | `/users` | List semua user |
-| GET | `/users/:id` | Detail user |
-| POST | `/users` | Buat user (`{ "name": "...", "email": "..." }`) |
-| PUT | `/users/:id` | Update user |
-| DELETE | `/users/:id` | Hapus user |
+| POST | `/api/users` | Registrasi user (`{ "name", "email", "password" }`) → `201 { "data": "OK" }`; email duplikat → `409 { "error": "Email sudah terdaftar" }` |
+| GET | `/api/users` | List semua user (tanpa kolom password) |
+| GET | `/api/users/:id` | Detail user |
+| PUT | `/api/users/:id` | Update user |
+| DELETE | `/api/users/:id` | Hapus user |
 
 Contoh:
 
 ```bash
 curl http://localhost:3000/health
 
-curl -X POST http://localhost:3000/users \
+# Registrasi user baru
+curl -i -X POST http://localhost:3000/api/users \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Budi","email":"budi@example.com"}'
+  -d '{"name":"Nickzad","email":"nickzad@gmail.com","password":"rahasia"}'
 
-curl http://localhost:3000/users
+curl http://localhost:3000/api/users
 ```
 
 ## Scripts
@@ -77,7 +78,9 @@ curl http://localhost:3000/users
 │   │   ├── index.ts      # koneksi Drizzle + PostgreSQL (postgres-js)
 │   │   └── schema.ts     # definisi tabel
 │   ├── routes
-│   │   └── users.ts      # CRUD /users
+│   │   └── users-route.ts   # routing Elysia (validasi + status HTTP)
+│   ├── services
+│   │   └── users-service.ts # logic bisnis + akses database
 │   └── index.ts          # entrypoint Elysia
 ├── drizzle.config.ts     # konfigurasi drizzle-kit (dialect postgresql)
 ├── docker-compose.yml    # PostgreSQL untuk development
@@ -89,6 +92,9 @@ curl http://localhost:3000/users
 - Bun otomatis membaca file `.env`, jadi tidak perlu library `dotenv` di runtime.
 - File `.env` **tidak** di-commit (sudah ada di `.gitignore`).
 - Driver PostgreSQL memakai `postgres` (postgres-js).
+- Password user disimpan sebagai **hash bcrypt** memakai `Bun.password` bawaan Bun
+  (`algorithm: 'bcrypt'`) — tanpa dependency tambahan. Password tidak pernah dikirim
+  balik ke client.
 - Pelanggaran unique constraint (email duplikat) dikembalikan sebagai HTTP 409
   (kode error PostgreSQL `23505`).
 - Insert/update/delete memakai `.returning()` — fitur khas PostgreSQL.
