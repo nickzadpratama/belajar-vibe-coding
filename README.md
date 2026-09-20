@@ -1,13 +1,13 @@
 # belajar-vibe-coding
 
-Project backend sederhana: **Bun + ElysiaJS + Drizzle ORM + MySQL**.
+Project backend sederhana: **Bun + ElysiaJS + Drizzle ORM + PostgreSQL**.
 
 ## Prasyarat
 
 - [Bun](https://bun.com) (dites dengan v1.4.2)
-- MySQL 8.x — pilih salah satu:
+- PostgreSQL — pilih salah satu:
   - **Docker** (disarankan): `docker compose up -d` (memakai `docker-compose.yml` di repo ini)
-  - **MySQL lokal**: install `mysql-server`, lalu buat database `app_db`
+  - **PostgreSQL lokal**: install `postgresql`, lalu buat database `app_db`
 
 ## Setup
 
@@ -18,7 +18,7 @@ bun install
 # 2. Siapkan environment variable
 cp .env.example .env   # lalu sesuaikan DATABASE_URL bila perlu
 
-# 3. Jalankan MySQL (jika pakai Docker)
+# 3. Jalankan PostgreSQL (jika pakai Docker)
 docker compose up -d
 
 # 4. Terapkan schema ke database
@@ -74,13 +74,13 @@ curl http://localhost:3000/users
 ```
 ├── src
 │   ├── db
-│   │   ├── index.ts      # koneksi Drizzle + MySQL (pool)
+│   │   ├── index.ts      # koneksi Drizzle + PostgreSQL (postgres-js)
 │   │   └── schema.ts     # definisi tabel
 │   ├── routes
 │   │   └── users.ts      # CRUD /users
 │   └── index.ts          # entrypoint Elysia
-├── drizzle.config.ts     # konfigurasi drizzle-kit
-├── docker-compose.yml    # MySQL untuk development
+├── drizzle.config.ts     # konfigurasi drizzle-kit (dialect postgresql)
+├── docker-compose.yml    # PostgreSQL untuk development
 └── .env.example          # template environment variable
 ```
 
@@ -88,7 +88,11 @@ curl http://localhost:3000/users
 
 - Bun otomatis membaca file `.env`, jadi tidak perlu library `dotenv` di runtime.
 - File `.env` **tidak** di-commit (sudah ada di `.gitignore`).
-- Driver MySQL memakai `mysql2`. Alternatifnya driver bawaan Bun (`drizzle-orm/bun-sql/mysql`).
+- Driver PostgreSQL memakai `postgres` (postgres-js).
+- Pelanggaran unique constraint (email duplikat) dikembalikan sebagai HTTP 409
+  (kode error PostgreSQL `23505`).
+- Insert/update/delete memakai `.returning()` — fitur khas PostgreSQL.
+
 
 This project was created using `bun init` in bun v1.4.2. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
 
