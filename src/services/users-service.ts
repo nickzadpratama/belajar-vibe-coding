@@ -29,14 +29,28 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-/** PostgreSQL menandai pelanggaran unique constraint dengan kode 23505. */
+/**
+ * PostgreSQL menandai pelanggaran unique constraint dengan kode 23505.
+ * Drizzle membungkus error query dalam DrizzleQueryError, sehingga kode asli
+ * bisa berada di error itu sendiri atau di rantai `cause`-nya (PostgresError).
+ */
 function isUniqueViolation(error: unknown) {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === '23505'
-  );
+  let current: unknown = error;
+
+  // Maksimal 10 level `cause`: drizzle membungkus 1 level, sisanya jaring pengaman.
+  for (let depth = 0; depth < 10 && current !== null && current !== undefined; depth++) {
+    if (
+      typeof current === 'object' &&
+      'code' in current &&
+      (current as { code?: unknown }).code === '23505'
+    ) {
+      return true;
+    }
+
+    current = (current as { cause?: unknown }).cause;
+  }
+
+  return false;
 }
 
 /** Sesi berlaku 7 hari sejak login. */

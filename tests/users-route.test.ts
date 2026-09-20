@@ -6,6 +6,7 @@ import { Elysia, t } from 'elysia';
 let selectRows: unknown[] = [];
 let deletedRows: unknown[] = [];
 let insertArg: unknown = null;
+let insertError: unknown = null;
 let deleteWhereArg: unknown = null;
 let selectWhereArg: unknown = null;
 let returningArg: unknown = null;
@@ -43,7 +44,7 @@ const insertQuery = {
   values(value: unknown) {
     calls.push('insert.values');
     insertArg = value;
-    return Promise.resolve();
+    return insertError ? Promise.reject(insertError) : Promise.resolve();
   },
 };
 
@@ -232,6 +233,84 @@ test('logout: token valid -> 200 { data: OK }, returning hanya id', async () => 
   expect(collectParams(deleteWhereArg)).toEqual([sha256hex('tok-valid')]);
   expect(Object.keys(returningArg as object)).toEqual(['id']);
 });
+
+// --- registrasi: bentuk error persis seperti drizzle 0.45 + postgres-js di PostgreSQL nyata ---
+// Drizzle membungkus error query: DrizzleQueryError (tanpa code) -> cause: PostgresError (code 23505).
+class FakePostgresError extends Error {
+  code = '23505';
+  constructor() {
+    super('duplicate key value violates unique constraint "users_email_unique"');
+    this.name = 'PostgresError';
+  }
+}
+
+class FakeDrizzleQueryError extends Error {
+  override cause: Error;
+  constructor(cause: Error) {
+    super('Failed query: insert into "users" ("id", "name", "email", "password", "created_at") values');
+    this.name = 'DrizzleQueryError';
+    this.cause = cause;
+  }
+}
+
+test('register: sukses -> 201 { data: OK }', async () => {
+  insertError = null;
+  calls.length = 0;
+  const res = await usersRoutes.handle(
+    new Request('http://localhost/api/users', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Nickzad', email: 'Nickzad@Gmail.com', password: 'rahasia' }),
+    }),
+  );
+  expect(res.status).toBe(201);
+  expect(await res.text()).toBe('{"data":"OK"}');
+  // register tidak melakukan pre-check select; bukti normalisasi ada di nilai insert
+  expect(insertArg).toMatchObject({ name: 'Nickzad', email: 'nickzad@gmail.com' });
+  expect((insertArg as { password: string }).password).toMatch(/^\$2[ab]\$/);
+});
+
+test('register: email duplikat (DrizzleQueryError, code 23505 di cause) -> 409', async () => {
+  // Ini bentuk error NYATA di PostgreSQL — versi lama isUniqueViolation melewatkan cause → 500.
+  insertError = new FakeDrizzleQueryError(new FakePostgresError());
+  calls.length = 0;
+  const res = await usersRoutes.handle(
+    new Request('http://localhost/api/users', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Nickzad', email: 'nickzad@gmail.com', password: 'rahasia' }),
+    }),
+  );
+  expect(res.status).toBe(409);
+  expect(await res.text()).toBe('{"error":"Email sudah terdaftar"}');
+});
+
+test('register: unique violation langsung (code di level atas, tanpa bungkus) tetap 409', async () => {
+  insertError = Object.assign(new Error('duplicate key'), { code: '23505' });
+  const res = await usersRoutes.handle(
+    new Request('http://localhost/api/users', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Nickzad', email: 'nickzad@gmail.com', password: 'rahasia' }),
+    }),
+  );
+  expect(res.status).toBe(409);
+  expect(await res.text()).toBe('{"error":"Email sudah terdaftar"}');
+});
+
+test('register: error lain (bukan 23505) tidak disamarkan -> dilempar (500)', async () => {
+  insertError = new Error('boom: koneksi database hilang');
+  const res = await usersRoutes.handle(
+    new Request('http://localhost/api/users', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Nickzad', email: 'nickzad@gmail.com', password: 'rahasia' }),
+    }),
+  );
+  expect(res.status).toBe(500);
+  insertError = null;
+});
+
 
 test('logout: skema bearer huruf kecil + spasi berlebih tetap diterima', async () => {
   deletedRows = [{ id: 3 }];
