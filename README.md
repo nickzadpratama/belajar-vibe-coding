@@ -41,6 +41,7 @@ Server berjalan di `http://localhost:3000` (dapat diubah lewat `PORT` di `.env`)
 | GET | `/health` | Health check |
 | POST | `/api/users` | Registrasi user (`{ "name", "email", "password" }`) → `201 { "data": "OK" }`; email duplikat → `409 { "error": "Email sudah terdaftar" }` |
 | POST | `/api/users/login` | Login user (`{ "email", "password" }`) → `200 { "data": "<token uuid>" }`; kredensial salah → `401 { "error": "Email atau password salah" }` |
+| GET | `/api/users/current` | User yang sedang login, dari header `Authorization: Bearer <token>` → `200 { "data": { id, name, email, created_at } }`; token tidak valid → `401 { "error": "Unauthorized" }` |
 | GET | `/api/users` | List semua user (tanpa kolom password) |
 | GET | `/api/users/:id` | Detail user |
 | PUT | `/api/users/:id` | Update user |
@@ -60,6 +61,10 @@ curl -i -X POST http://localhost:3000/api/users \
 curl -i -X POST http://localhost:3000/api/users/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"nickzad@gmail.com","password":"rahasia"}'
+
+# Ambil user yang sedang login (token = nilai "data" dari response login)
+curl -i http://localhost:3000/api/users/current \
+  -H 'Authorization: Bearer <token-uuid-hasil-login>'
 
 curl http://localhost:3000/api/users
 ```
@@ -104,6 +109,9 @@ curl http://localhost:3000/api/users
 - Login (`POST /api/users/login`) membuat baris baru di tabel `sessions` dengan token berupa
   **UUID** (`crypto.randomUUID()`, 36 karakter) dan mengembalikan token itu. Token belum
   memiliki waktu kedaluwarsa, dan satu user boleh memiliki banyak sesi aktif.
+- Endpoint `GET /api/users/current` membaca header `Authorization: Bearer <token>` dan mencari
+  token itu di tabel `sessions`. Semua penyebab kegagalan (header kosong, skema salah, token
+  tidak dikenal) menjawab sama: `401 { "error": "Unauthorized" }`.
 - Pelanggaran unique constraint (email duplikat) dikembalikan sebagai HTTP 409
   (kode error PostgreSQL `23505`).
 - Insert/update/delete memakai `.returning()` — fitur khas PostgreSQL.

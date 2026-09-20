@@ -124,3 +124,16 @@ export async function deleteUser(id: number) {
 
   return deleted !== undefined;
 }
+
+/**
+ * Cari user pemilik token sesi. Token tidak dikenal -> null.
+ */
+export async function findCurrentUser(token: string) {
+  const [user] = await db
+    .select(publicColumns)
+    .from(sessions)
+    .innerJoin(users, eq(sessions.userId, users.id))
+    .where(eq(sessions.token, token));
+
+  return user ?? null;
+}

@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia';
 import {
   EmailAlreadyRegisteredError,
   InvalidCredentialsError,
+  findCurrentUser,
   deleteUser,
   findUserById,
   findUsers,
@@ -9,6 +10,11 @@ import {
   registerUser,
   updateUser,
 } from '../services/users-service';
+
+/** Ambil token dari header `Authorization: Bearer <token>`. */
+function extractBearerToken(header: string | undefined) {
+  return /^Bearer\s+(\S+)$/i.exec(header?.trim() ?? '')?.[1] ?? null;
+}
 
 const registerBody = t.Object({
   name: t.String({ minLength: 1, maxLength: 255 }),
@@ -68,6 +74,26 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
       }
     },
     { body: loginBody },
+  )
+  .get(
+    '/current',
+    async ({ headers, status }) => {
+      const token = extractBearerToken(headers.authorization);
+      const user = token ? await findCurrentUser(token) : null;
+
+      if (!user) {
+        return status(401, { error: 'Unauthorized' });
+      }
+
+      return {
+        data: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          created_at: user.createdAt,
+        },
+      };
+    },
   )
   .get('/', () => findUsers())
   .get(
