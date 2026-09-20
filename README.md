@@ -118,11 +118,11 @@ curl http://localhost:3000/api/users
   token itu di tabel `sessions`. Semua penyebab kegagalan (header kosong, skema salah, token
   tidak dikenal) menjawab sama: `401 { "error": "Unauthorized" }`.
 - Pelanggaran unique constraint (email duplikat) dikembalikan sebagai HTTP 409
+  (kode error PostgreSQL `23505`).
 - Endpoint `DELETE /api/users/logout` menghapus **satu baris** di tabel `sessions` yang tokennya
   cocok dengan header `Authorization: Bearer <token>`. Setelah logout, token itu tidak bisa lagi
   dipakai (`GET /api/users/current` → `401`). Semua kegagalan (header kosong, skema salah, token
   tidak dikenal) menjawab sama: `401 { "error": "Unauthorized" }`.
-  (kode error PostgreSQL `23505`).
 - Insert/update/delete memakai `.returning()` — fitur khas PostgreSQL.
 
 
