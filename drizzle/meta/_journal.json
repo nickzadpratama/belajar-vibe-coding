@@ -15,6 +15,13 @@
       "when": 1789890217766,
       "tag": "0001_yielding_black_bird",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789901555906,
+      "tag": "0002_icy_kulan_gath",
+      "breakpoints": true
     }
   ]
 }

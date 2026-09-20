@@ -1,9 +1,11 @@
 import { Elysia, t } from 'elysia';
 import {
   EmailAlreadyRegisteredError,
+  InvalidCredentialsError,
   deleteUser,
   findUserById,
   findUsers,
+  loginUser,
   registerUser,
   updateUser,
 } from '../services/users-service';
@@ -12,6 +14,13 @@ const registerBody = t.Object({
   name: t.String({ minLength: 1, maxLength: 255 }),
   email: t.String({ format: 'email', maxLength: 255 }),
   // minLength sengaja 1: contoh di spec memakai password "rahasia" (7 karakter).
+  // maxLength 72 mengikuti batas bcrypt standar.
+  password: t.String({ minLength: 1, maxLength: 72 }),
+});
+
+const loginBody = t.Object({
+  email: t.String({ format: 'email', maxLength: 255 }),
+  // minLength 1 (bukan 8): contoh password di spec hanya 7 karakter.
   // maxLength 72 mengikuti batas bcrypt standar.
   password: t.String({ minLength: 1, maxLength: 72 }),
 });
@@ -42,6 +51,23 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
       }
     },
     { body: registerBody },
+  )
+  .post(
+    '/login',
+    async ({ body, status }) => {
+      try {
+        const token = await loginUser(body);
+
+        return status(200, { data: token });
+      } catch (error) {
+        if (error instanceof InvalidCredentialsError) {
+          return status(401, { error: 'Email atau password salah' });
+        }
+
+        throw error;
+      }
+    },
+    { body: loginBody },
   )
   .get('/', () => findUsers())
   .get(
