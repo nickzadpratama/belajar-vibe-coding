@@ -111,18 +111,21 @@ curl http://localhost:3000/api/users
 - Password user disimpan sebagai **hash bcrypt** memakai `Bun.password` bawaan Bun
   (`algorithm: 'bcrypt'`) — tanpa dependency tambahan. Password tidak pernah dikirim
   balik ke client.
-- Login (`POST /api/users/login`) membuat baris baru di tabel `sessions` dengan token berupa
-  **UUID** (`crypto.randomUUID()`, 36 karakter) dan mengembalikan token itu. Token belum
-  memiliki waktu kedaluwarsa, dan satu user boleh memiliki banyak sesi aktif.
-- Endpoint `GET /api/users/current` membaca header `Authorization: Bearer <token>` dan mencari
-  token itu di tabel `sessions`. Semua penyebab kegagalan (header kosong, skema salah, token
-  tidak dikenal) menjawab sama: `401 { "error": "Unauthorized" }`.
+- Login (`POST /api/users/login`) membuat baris baru di tabel `sessions`: token client berupa
+  **UUID** (`crypto.randomUUID()`, 36 karakter) yang dikembalikan ke client, sedangkan yang
+  tersimpan di DB adalah **hash SHA-256**-nya (hex, 64 karakter). Sesi berlaku **7 hari**
+  (kolom `expires_at`), dan setiap login membersihkan sesi kedaluwarsa milik user yang
+  bersangkutan.
+- Endpoint `GET /api/users/current` membaca header `Authorization: Bearer <token>`, meng-hash
+  token itu, lalu mencari hash-nya di tabel `sessions`. Sesi kedaluwarsa diperlakukan sama
+  dengan token tidak dikenal. Semua penyebab kegagalan (header kosong, skema salah, token
+  tidak dikenal, sesi kedaluwarsa) menjawab sama: `401 { "error": "Unauthorized" }`.
 - Pelanggaran unique constraint (email duplikat) dikembalikan sebagai HTTP 409
   (kode error PostgreSQL `23505`).
-- Endpoint `DELETE /api/users/logout` menghapus **satu baris** di tabel `sessions` yang tokennya
-  cocok dengan header `Authorization: Bearer <token>`. Setelah logout, token itu tidak bisa lagi
-  dipakai (`GET /api/users/current` → `401`). Semua kegagalan (header kosong, skema salah, token
-  tidak dikenal) menjawab sama: `401 { "error": "Unauthorized" }`.
+- Endpoint `DELETE /api/users/logout` menghapus **satu baris** di tabel `sessions` yang hash
+  tokennya cocok dengan header `Authorization: Bearer <token>`. Setelah logout, token itu tidak
+  bisa lagi dipakai (`GET /api/users/current` → `401`). Semua kegagalan (header kosong, skema
+  salah, token tidak dikenal) menjawab sama: `401 { "error": "Unauthorized" }`.
 - Insert/update/delete memakai `.returning()` — fitur khas PostgreSQL.
 
 

@@ -1,4 +1,4 @@
-import { integer, pgTable, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 /**
  * Tabel contoh untuk membuktikan koneksi database berjalan.
@@ -13,17 +13,26 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-/** Sesi login: satu baris = satu token aktif milik satu user. */
-export const sessions = pgTable('sessions', {
-  id: integer('id')
-    .primaryKey()
-    .generatedAlwaysAsIdentity(),
-  token: varchar('token', { length: 36 }).notNull().unique(),
-  userId: integer('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+/**
+ * Sesi login: satu baris = satu token aktif milik satu user.
+ * Kolom `token` menyimpan hash SHA-256 (hex, 64 karakter) dari token yang
+ * dikirim client — token mentah hanya ada di sisi client.
+ */
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: integer('id')
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    token: varchar('token', { length: 64 }).notNull().unique(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [index('sessions_user_id_idx').on(table.userId)],
+);
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

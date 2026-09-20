@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, gt, lt } from 'drizzle-orm';
 import { db } from '../db';
 import { sessions, users } from '../db/schema';
 
@@ -37,6 +37,14 @@ function isUniqueViolation(error: unknown) {
     'code' in error &&
     error.code === '23505'
   );
+}
+
+/** Sesi berlaku 7 hari sejak login. */
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Token client disimpan sebagai hash SHA-256 (hex, 64 char) — bukan plaintext. */
+function hashToken(token: string) {
+  return new Bun.CryptoHasher('sha256').update(token).digest('hex');
 }
 
 export async function registerUser(input: {
@@ -89,9 +97,19 @@ export async function loginUser(input: { email: string; password: string }) {
     throw new InvalidCredentialsError();
   }
 
+  const now = new Date();
+
+  // Bersihkan sesi kedaluwarsa milik user ini — pembersihan tanpa cron:
+  // sesi mati dihapus tepat saat pemiliknya login lagi.
+  await db.delete(sessions).where(and(eq(sessions.userId, user.id), lt(sessions.expiresAt, now)));
+
   const token = crypto.randomUUID();
 
-  await db.insert(sessions).values({ token, userId: user.id });
+  await db.insert(sessions).values({
+    token: hashToken(token), // DB menyimpan hash; token asli hanya untuk client
+    userId: user.id,
+    expiresAt: new Date(now.getTime() + SESSION_TTL_MS),
+  });
 
   return token;
 }
@@ -126,25 +144,25 @@ export async function deleteUser(id: number) {
 }
 
 /**
- * Cari user pemilik token sesi. Token tidak dikenal -> null.
+ * Cari user pemilik token sesi. Token tidak dikenal / sesi kedaluwarsa -> null.
  */
 export async function findCurrentUser(token: string) {
   const [user] = await db
     .select(publicColumns)
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
-    .where(eq(sessions.token, token));
+    .where(and(eq(sessions.token, hashToken(token)), gt(sessions.expiresAt, new Date())));
 
   return user ?? null;
 }
 
 /**
- * Hapus sesi pemilik token. Token tidak dikenal -> false.
+ * Hapus sesi pemilik token. Token tidak dikenal / sudah tidak ada -> false.
  */
 export async function logoutUser(token: string) {
   const [deleted] = await db
     .delete(sessions)
-    .where(eq(sessions.token, token))
+    .where(eq(sessions.token, hashToken(token)))
     .returning({ id: sessions.id });
 
   return deleted !== undefined;
