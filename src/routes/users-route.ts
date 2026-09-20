@@ -7,6 +7,7 @@ import {
   findUserById,
   findUsers,
   loginUser,
+  logoutUser,
   registerUser,
   updateUser,
 } from '../services/users-service';
@@ -121,6 +122,18 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
       return updated;
     },
     { params: userParams, body: updateBody },
+  )
+  .delete(
+    '/logout',
+    async ({ headers, status }) => {
+      const token = extractBearerToken(headers.authorization);
+
+      if (!token || !(await logoutUser(token))) {
+        return status(401, { error: 'Unauthorized' });
+      }
+
+      return { data: 'OK' };
+    },
   )
   .delete(
     '/:id',

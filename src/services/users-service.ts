@@ -137,3 +137,15 @@ export async function findCurrentUser(token: string) {
 
   return user ?? null;
 }
+
+/**
+ * Hapus sesi pemilik token. Token tidak dikenal -> false.
+ */
+export async function logoutUser(token: string) {
+  const [deleted] = await db
+    .delete(sessions)
+    .where(eq(sessions.token, token))
+    .returning({ id: sessions.id });
+
+  return deleted !== undefined;
+}
