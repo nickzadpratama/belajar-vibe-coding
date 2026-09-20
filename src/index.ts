@@ -6,6 +6,7 @@ const port = Number(process.env.PORT ?? 3000);
 const app = new Elysia()
   .get('/health', () => ({
     status: 'ok',
+    database: 'postgresql',
     timestamp: new Date().toISOString(),
   }))
   .use(usersRoutes)

@@ -1,5 +1,5 @@
-import { drizzle } from 'drizzle-orm/mysql2';
-import mysql from 'mysql2/promise';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import * as schema from './schema';
 
 const connectionString = process.env.DATABASE_URL;
@@ -11,8 +11,9 @@ if (!connectionString) {
 }
 
 /**
- * Connection pool MySQL. Gunakan satu pool untuk seluruh aplikasi.
+ * Client postgres-js. Satu instance untuk seluruh aplikasi
+ * (postgres-js mengelola connection pool internal).
  */
-export const pool = mysql.createPool(connectionString);
+export const client = postgres(connectionString);
 
-export const db = drizzle(pool, { schema, mode: 'default' });
+export const db = drizzle(client, { schema });

@@ -12,13 +12,13 @@ const userParams = t.Object({
   id: t.Numeric(),
 });
 
-/** MySQL menandai pelanggaran unique constraint dengan kode ER_DUP_ENTRY. */
-function isDuplicateEntry(error: unknown) {
+/** PostgreSQL menandai pelanggaran unique constraint dengan kode 23505. */
+function isUniqueViolation(error: unknown) {
   return (
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
-    error.code === 'ER_DUP_ENTRY'
+    error.code === '23505'
   );
 }
 
@@ -41,8 +41,7 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
     '/',
     async ({ body, status }) => {
       try {
-        const [result] = await db.insert(users).values(body);
-        const [created] = await db.select().from(users).where(eq(users.id, result.insertId));
+        const [created] = await db.insert(users).values(body).returning();
 
         if (!created) {
           return status(500, { message: 'User terbuat, tapi gagal dibaca kembali' });
@@ -50,7 +49,7 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
 
         return status(201, created);
       } catch (error) {
-        if (isDuplicateEntry(error)) {
+        if (isUniqueViolation(error)) {
           return status(409, { message: 'Email sudah terdaftar' });
         }
 
@@ -62,13 +61,15 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
   .put(
     '/:id',
     async ({ params, body, status }) => {
-      const [result] = await db.update(users).set(body).where(eq(users.id, params.id));
+      const [updated] = await db
+        .update(users)
+        .set(body)
+        .where(eq(users.id, params.id))
+        .returning();
 
-      if (result.affectedRows === 0) {
+      if (!updated) {
         return status(404, { message: 'User tidak ditemukan' });
       }
-
-      const [updated] = await db.select().from(users).where(eq(users.id, params.id));
 
       return updated;
     },
@@ -77,9 +78,12 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
   .delete(
     '/:id',
     async ({ params, status }) => {
-      const [result] = await db.delete(users).where(eq(users.id, params.id));
+      const [deleted] = await db
+        .delete(users)
+        .where(eq(users.id, params.id))
+        .returning();
 
-      if (result.affectedRows === 0) {
+      if (!deleted) {
         return status(404, { message: 'User tidak ditemukan' });
       }
 
