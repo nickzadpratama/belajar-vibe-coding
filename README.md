@@ -42,6 +42,7 @@ Server berjalan di `http://localhost:3000` (dapat diubah lewat `PORT` di `.env`)
 | POST | `/api/users` | Registrasi user (`{ "name", "email", "password" }`) → `201 { "data": "OK" }`; email duplikat → `409 { "error": "Email sudah terdaftar" }` |
 | POST | `/api/users/login` | Login user (`{ "email", "password" }`) → `200 { "data": "<token uuid>" }`; kredensial salah → `401 { "error": "Email atau password salah" }` |
 | GET | `/api/users/current` | User yang sedang login, dari header `Authorization: Bearer <token>` → `200 { "data": { id, name, email, created_at } }`; token tidak valid → `401 { "error": "Unauthorized" }` |
+| DELETE | `/api/users/logout` | Logout: hapus sesi dari header `Authorization: Bearer <token>` → `200 { "data": "OK" }`; token tidak valid → `401 { "error": "Unauthorized" }` |
 | GET | `/api/users` | List semua user (tanpa kolom password) |
 | GET | `/api/users/:id` | Detail user |
 | PUT | `/api/users/:id` | Update user |
@@ -64,6 +65,10 @@ curl -i -X POST http://localhost:3000/api/users/login \
 
 # Ambil user yang sedang login (token = nilai "data" dari response login)
 curl -i http://localhost:3000/api/users/current \
+  -H 'Authorization: Bearer <token-uuid-hasil-login>'
+
+# Logout — sesi dengan token ini dihapus dari tabel sessions
+curl -i -X DELETE http://localhost:3000/api/users/logout \
   -H 'Authorization: Bearer <token-uuid-hasil-login>'
 
 curl http://localhost:3000/api/users
@@ -106,14 +111,21 @@ curl http://localhost:3000/api/users
 - Password user disimpan sebagai **hash bcrypt** memakai `Bun.password` bawaan Bun
   (`algorithm: 'bcrypt'`) — tanpa dependency tambahan. Password tidak pernah dikirim
   balik ke client.
-- Login (`POST /api/users/login`) membuat baris baru di tabel `sessions` dengan token berupa
-  **UUID** (`crypto.randomUUID()`, 36 karakter) dan mengembalikan token itu. Token belum
-  memiliki waktu kedaluwarsa, dan satu user boleh memiliki banyak sesi aktif.
-- Endpoint `GET /api/users/current` membaca header `Authorization: Bearer <token>` dan mencari
-  token itu di tabel `sessions`. Semua penyebab kegagalan (header kosong, skema salah, token
-  tidak dikenal) menjawab sama: `401 { "error": "Unauthorized" }`.
+- Login (`POST /api/users/login`) membuat baris baru di tabel `sessions`: token client berupa
+  **UUID** (`crypto.randomUUID()`, 36 karakter) yang dikembalikan ke client, sedangkan yang
+  tersimpan di DB adalah **hash SHA-256**-nya (hex, 64 karakter). Sesi berlaku **7 hari**
+  (kolom `expires_at`), dan setiap login membersihkan sesi kedaluwarsa milik user yang
+  bersangkutan.
+- Endpoint `GET /api/users/current` membaca header `Authorization: Bearer <token>`, meng-hash
+  token itu, lalu mencari hash-nya di tabel `sessions`. Sesi kedaluwarsa diperlakukan sama
+  dengan token tidak dikenal. Semua penyebab kegagalan (header kosong, skema salah, token
+  tidak dikenal, sesi kedaluwarsa) menjawab sama: `401 { "error": "Unauthorized" }`.
 - Pelanggaran unique constraint (email duplikat) dikembalikan sebagai HTTP 409
   (kode error PostgreSQL `23505`).
+- Endpoint `DELETE /api/users/logout` menghapus **satu baris** di tabel `sessions` yang hash
+  tokennya cocok dengan header `Authorization: Bearer <token>`. Setelah logout, token itu tidak
+  bisa lagi dipakai (`GET /api/users/current` → `401`). Semua kegagalan (header kosong, skema
+  salah, token tidak dikenal) menjawab sama: `401 { "error": "Unauthorized" }`.
 - Insert/update/delete memakai `.returning()` — fitur khas PostgreSQL.
 
 
