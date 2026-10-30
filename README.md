@@ -8,6 +8,7 @@ REST API backend untuk manajemen user dengan fitur autentikasi (register, login,
 |---|---|---|
 | [Bun](https://bun.com) | v1.4.2 | JavaScript/TypeScript runtime, package manager, test runner |
 | [ElysiaJS](https://elysiajs.com) | v1.4.30 | Web framework (routing, validasi request body/params) |
+| [@elysiajs/swagger](https://elysiajs.com/plugins/swagger.html) | v1.3.1 | Dokumentasi interaktif OpenAPI / Swagger UI |
 | [Drizzle ORM](https://orm.drizzle.team) | v0.45.2 | ORM type-safe untuk query dan schema management |
 | [Drizzle Kit](https://orm.drizzle.team/kit-docs/overview) | v0.31.10 | CLI tool untuk migration dan studio |
 | [postgres (postgres-js)](https://github.com/porsager/postgres) | v3.4.9 | PostgreSQL driver (connection pooling internal) |
@@ -35,6 +36,7 @@ belajar-vibe-coding/
 │   ├── health.test.ts            # Test health endpoint
 │   ├── register.test.ts          # Test register endpoint
 │   ├── login.test.ts             # Test login endpoint
+│   ├── swagger.test.ts           # Test endpoint OpenAPI / Swagger JSON
 │   ├── list-users.test.ts        # Test list users endpoint
 │   ├── get-user.test.ts          # Test get user by ID endpoint
 │   └── update-user.test.ts       # Test update user endpoint
@@ -113,11 +115,21 @@ erDiagram
 
 Base URL: `http://localhost:3000`
 
+### Dokumentasi Interaktif (Swagger UI)
+
+Saat server berjalan, buka browser di alamat:
+- **Swagger UI**: [http://localhost:3000/swagger](http://localhost:3000/swagger)
+- **OpenAPI JSON Spec**: [http://localhost:3000/swagger/json](http://localhost:3000/swagger/json)
+
+Swagger UI menyediakan fitur *Try it out* interaktif lengkap dengan tombol **Authorize** untuk menguji endpoint dengan Bearer Token.
+
 ### Health Check
 
 | Method | Path | Deskripsi |
 |---|---|---|
 | `GET` | `/health` | Cek status server |
+| `GET` | `/swagger` | Tampilan interaktif Swagger UI |
+| `GET` | `/swagger/json` | Spesifikasi OpenAPI JSON |
 
 **Response:** `200`
 ```json
