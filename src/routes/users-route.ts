@@ -57,7 +57,25 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
         throw error;
       }
     },
-    { body: registerBody },
+    {
+      body: registerBody,
+      detail: {
+        tags: ['Users'],
+        summary: 'Registrasi user baru',
+        description: 'Mendaftarkan user baru dengan nama, email, dan password.',
+        responses: {
+          201: {
+            description: 'Registrasi berhasil',
+          },
+          400: {
+            description: 'Validasi input gagal',
+          },
+          409: {
+            description: 'Email sudah terdaftar',
+          },
+        },
+      },
+    },
   )
   .post(
     '/login',
@@ -74,7 +92,25 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
         throw error;
       }
     },
-    { body: loginBody },
+    {
+      body: loginBody,
+      detail: {
+        tags: ['Users'],
+        summary: 'Login user',
+        description: 'Autentikasi user dan buat token sesi baru (UUID).',
+        responses: {
+          200: {
+            description: 'Login berhasil, mengembalikan token sesi UUID',
+          },
+          400: {
+            description: 'Validasi format email atau password gagal',
+          },
+          401: {
+            description: 'Email atau password salah',
+          },
+        },
+      },
+    },
   )
   .get(
     '/current',
@@ -95,8 +131,39 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
         },
       };
     },
+    {
+      detail: {
+        tags: ['Users'],
+        summary: 'Ambil profil user yang sedang login',
+        description: 'Mendapatkan profil publik user berdasarkan header Authorization Bearer token.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Profil user berhasil didapatkan',
+          },
+          401: {
+            description: 'Unauthorized (token tidak ditemukan, salah, atau kedaluwarsa)',
+          },
+        },
+      },
+    },
   )
-  .get('/', () => findUsers())
+  .get(
+    '/',
+    () => findUsers(),
+    {
+      detail: {
+        tags: ['Users'],
+        summary: 'Mendapatkan semua daftar user',
+        description: 'Mengambil seluruh list user publik tanpa kolom password.',
+        responses: {
+          200: {
+            description: 'Daftar user berhasil didapatkan',
+          },
+        },
+      },
+    },
+  )
   .get(
     '/:id',
     async ({ params, status }) => {
@@ -108,7 +175,25 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
 
       return user;
     },
-    { params: userParams },
+    {
+      params: userParams,
+      detail: {
+        tags: ['Users'],
+        summary: 'Mendapatkan data user berdasarkan ID',
+        description: 'Mengambil data detail user publik berdasarkan parameter ID.',
+        responses: {
+          200: {
+            description: 'Data user ditemukan',
+          },
+          400: {
+            description: 'Format ID tidak valid',
+          },
+          404: {
+            description: 'User tidak ditemukan',
+          },
+        },
+      },
+    },
   )
   .put(
     '/:id',
@@ -121,7 +206,26 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
 
       return updated;
     },
-    { params: userParams, body: updateBody },
+    {
+      params: userParams,
+      body: updateBody,
+      detail: {
+        tags: ['Users'],
+        summary: 'Memperbarui data user berdasarkan ID',
+        description: 'Mengubah nama dan/atau email user berdasarkan ID.',
+        responses: {
+          200: {
+            description: 'Data user berhasil diperbarui',
+          },
+          400: {
+            description: 'Validasi input tidak sesuai',
+          },
+          404: {
+            description: 'User tidak ditemukan',
+          },
+        },
+      },
+    },
   )
   .delete(
     '/logout',
@@ -133,6 +237,22 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
       }
 
       return { data: 'OK' };
+    },
+    {
+      detail: {
+        tags: ['Users'],
+        summary: 'Logout dan hapus sesi aktif',
+        description: 'Menghapus token sesi aktif milik user dari database.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Berhasil logout',
+          },
+          401: {
+            description: 'Unauthorized (token tidak ditemukan atau tidak valid)',
+          },
+        },
+      },
     },
   )
   .delete(
@@ -146,5 +266,23 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
 
       return { data: 'OK' };
     },
-    { params: userParams },
+    {
+      params: userParams,
+      detail: {
+        tags: ['Users'],
+        summary: 'Menghapus user berdasarkan ID',
+        description: 'Menghapus data user dari sistem berdasarkan ID.',
+        responses: {
+          200: {
+            description: 'User berhasil dihapus',
+          },
+          400: {
+            description: 'Format ID tidak valid',
+          },
+          404: {
+            description: 'User tidak ditemukan',
+          },
+        },
+      },
+    },
   );
