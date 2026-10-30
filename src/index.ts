@@ -44,6 +44,29 @@ const app = new Elysia()
         tags: ['System'],
         summary: 'Health Check',
         description: 'Mengecek status ketersediaan server dan database',
+        responses: {
+          200: {
+            description: 'Server dan database dalam kondisi normal',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'ok' },
+                    database: { type: 'string', example: 'postgresql' },
+                    timestamp: { type: 'string', example: '2026-10-30T15:00:00.000Z' },
+                  },
+                  required: ['status', 'database', 'timestamp'],
+                },
+                example: {
+                  status: 'ok',
+                  database: 'postgresql',
+                  timestamp: '2026-10-30T15:00:00.000Z',
+                },
+              },
+            },
+          },
+        },
       },
     },
   )
